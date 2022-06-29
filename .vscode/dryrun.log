@@ -1,0 +1,6 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory `/Users/utilisateur/Exercism/elixir/auth/pwdless_gs'
+make: Leaving directory `/Users/utilisateur/Exercism/elixir/auth/pwdless_gs'
+ 
+make: *** No targets specified and no makefile found.  Stop.
+

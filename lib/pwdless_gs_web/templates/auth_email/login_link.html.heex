@@ -1,0 +1,11 @@
+<html>
+  <head>
+    <title><%= @email.subject %></title>
+  </head>
+  <body>
+    <p>Hello!</p>
+    <p>Use the link below to log in to your Passwordless account. <strong>This link expires in 15 minutes.</strong></p>
+    <p>Token: <%= assigns.token %></p>
+    <p><%= link "Log in to PwdlessGs", to: Routes.session_url(PwdlessGsWeb.Endpoint, :confirm_link, @token) %></p>
+  </body>
+</html>
