@@ -4,9 +4,16 @@ defmodule PwdlessGs.Repo do
   # alias PwdlessGs.Repo
 
   def start_link(opts) do
-    opts = Keyword.put_new(opts, :name, __MODULE__)
-    {:ok, users} = Keyword.fetch(opts, :users)
-    GenServer.start_link(__MODULE__, users, opts)
+    {:ok, users} =
+      case opts do
+        [] ->
+          {:ok, []}
+
+        _ ->
+          Keyword.fetch(opts, :users)
+      end
+
+    GenServer.start_link(__MODULE__, users, name: __MODULE__)
   end
 
   def all(pid \\ __MODULE__),
@@ -46,7 +53,9 @@ defmodule PwdlessGs.Repo do
     {:ok, state}
   end
 
-  def init(_), do: {:stop, "Invalid list of users"}
+  def init(_users), do: {:ok, []}
+
+  # def init(_), do: {:stop, "Invalid list of users"}
 
   @impl true
 
