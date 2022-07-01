@@ -9,8 +9,7 @@ defmodule PwdlessGs.Plug.Authorize do
   def call(conn, _opts) do
     with {:header, ["Bearer " <> token]} <- {:header, get_req_header(conn, "authorization")},
          {:token, {:ok, user}} <- {:token, UserToken.verify("login", token)} do
-      conn
-      |> assign(:email, user)
+      assign(conn, :current_user, user)
     else
       {:header, _} ->
         {:error, "no bearer"}
