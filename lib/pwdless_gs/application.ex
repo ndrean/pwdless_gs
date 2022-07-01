@@ -14,6 +14,7 @@ defmodule PwdlessGs.Application do
       {Phoenix.PubSub, name: PwdlessGs.PubSub},
       # Start the Endpoint (http/https)
       PwdlessGsWeb.Endpoint,
+      # {PwdlessGs.Repo, []}
       {PwdlessGs.Repo, [users: users()]}
       # Start a worker by calling: PwdlessGs.Worker.start_link(arg)
       # {PwdlessGs.Worker, arg}

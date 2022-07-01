@@ -1,11 +1,21 @@
 defmodule PwdlessGs.Repo do
   use GenServer
   alias PwdlessGs.UserToken
-  # alias PwdlessGs.Repo
 
   def start_link(opts) do
-    opts = Keyword.put_new(opts, :name, __MODULE__)
-    {:ok, users} = Keyword.fetch(opts, :users)
+    {:ok, users} =
+      case opts do
+        nil ->
+          {:ok, []}
+
+        [] ->
+          {:ok, []}
+
+        _ ->
+          opts = Keyword.put_new(opts, :name, __MODULE__)
+          Keyword.fetch(opts, :users)
+      end
+
     GenServer.start_link(__MODULE__, users, opts)
   end
 
@@ -39,11 +49,18 @@ defmodule PwdlessGs.Repo do
   """
   @impl true
   def init(users) when is_list(users) and length(users) > 0 do
+    IO.inspect(users, label: "init_____")
+
     # state = Enum.reduce(users, %{}, &Map.put(&2, &1, nil))
     # state = Enum.reduce(users, [], &[%{"#{&1}" => nil, id: nil} | &2])
     state = Enum.reduce(users, [], &[{&1, nil, Ecto.UUID.generate()} | &2])
     IO.inspect(state, label: "state___")
     {:ok, state}
+  end
+
+  def init(users) when is_list(users) do
+    IO.inspect(users, label: "init0_____[]")
+    {:ok, users}
   end
 
   def init(_), do: {:stop, "Invalid list of users"}
