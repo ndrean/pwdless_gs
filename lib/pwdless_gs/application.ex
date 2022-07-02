@@ -14,8 +14,8 @@ defmodule PwdlessGs.Application do
       {Phoenix.PubSub, name: PwdlessGs.PubSub},
       # Start the Endpoint (http/https)
       PwdlessGsWeb.Endpoint,
-      {PwdlessGs.Repo, []}
-      # {PwdlessGs.Repo, [users: testing_users()]} <-- testing
+      # {PwdlessGs.Repo, []}
+      {PwdlessGs.Repo, [users: users()]}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
