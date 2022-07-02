@@ -15,7 +15,7 @@ defmodule PwdlessGs.Application do
       # Start the Endpoint (http/https)
       PwdlessGsWeb.Endpoint,
       # {PwdlessGs.Repo, []}
-      {PwdlessGs.Repo, [users: users()]}
+      {PwdlessGs.Repo, [users: testing_users()]}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
