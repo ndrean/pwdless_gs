@@ -29,7 +29,10 @@ defmodule PwdlessGsWeb.SessionController do
         # provide a longer term token
         {:ok, session_token} = UserToken.generate("login", email)
         {^email, ^session_token, uuid} = Repo.save(email, session_token)
-        conn = assign(conn, :token, token)
+
+        conn
+        |> assign(:token, token)
+        |> assign(:current, email)
 
         json(conn, %{
           message: gettext("Welcome ") <> "#{email}!",

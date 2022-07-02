@@ -1,5 +1,24 @@
 # PwdlessGs
 
+Authentification via passwordless/email-magic-link or Social Login.
+Authorization via a Phoenix token (with a refresher based on UUID).
+Using a key/value database for storing `{email, uuid, temporary token}`
+
+## Database choices
+
+- Mnesia (cluster distributed)
+- `:persistent_term` (cluster distributed)
+- Ets distributed via Phoenix.PubSub (cluster)
+- Redis as external db
+
+Since Ets is not distributed, we need to somehow distribute the data through the cluster. The Phoenix pubsub service is distributed, thus we can use it to update the local Ets table of each connected node. The notification service defaults to PG2, the in-build Erlang solution. We can also choose Redis.
+
+## Automatic clustering
+
+With `libcluster`. Mode "ip" - `epmd` is ok but mode "DNS" - `gossip`  didn't work for me???
+
+What about [Docker and EPMD?](https://www.jkmrto.dev/posts/erlang-distributed-with-docker-and-libcluster)
+
 [Source Oauth](https://github.com/auth0-developer-hub/api_phoenix_elixir_hello-world/tree/basic-authorization)
 
 [Rate limiting GenServer](https://akoutmos.com/post/rate-limiting-with-genservers/)

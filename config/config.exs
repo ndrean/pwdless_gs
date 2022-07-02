@@ -13,6 +13,10 @@ config :pwdless_gs, PwdlessGsWeb.Endpoint,
 config :pwdless_gs, PwdlessGs.UserToken,
   secret_key_base: "Qt21hbUCsVQt8Q095JNzRPL5IIfjxifzmPwZ+jH5p/oyTLH0xDbclNrY6B17EN5B"
 
+# partial config of Libcluster (the topology is set in Application)
+# config :libcluster,
+#   debug: true
+
 # Configures the mailer
 #
 # By default it uses the "Local" adapter which stores the emails

@@ -35,14 +35,17 @@ defmodule PwdlessGs.Repo do
     end
   end
 
+  def pt_find_by_email(email),
+    do: :persistent_term.get(email)
+
   def find_by_email(email),
     do: :ets.lookup(:users, email) |> List.first()
 
-  def find_by_token(token),
-    do: :ets.match_object(:users, {:_, token, :_}) |> List.first()
+  # def find_by_token(token),
+  #   do: :ets.match_object(:users, {:_, token, :_}) |> List.first()
 
-  def find_by_id(uuid),
-    do: :ets.match_object(:users, {:_, :_, uuid}) |> List.first()
+  # def find_by_id(uuid),
+  #   do: :ets.match_object(:users, {:_, :_, uuid}) |> List.first()
 
   def new(email, context) do
     {:ok, token} = UserToken.generate(context, email)
@@ -50,8 +53,6 @@ defmodule PwdlessGs.Repo do
     :ets.insert(:users, user)
     Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @users_topic, {:perform_new, user})
     user
-    # GenServer.call(pid, {:new, email, context})
-    # {:reply, user, []}
   end
 
   def save(email, token) do
@@ -59,16 +60,8 @@ defmodule PwdlessGs.Repo do
     user = {email, token, uuid}
     :ets.insert(:users, user)
     Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @users_topic, {:perform_new, user})
-    # GenServer.call(pid, {:save, email, token})
     user
-    # {:reply, user, []}
   end
-
-  # with {^email, _, uuid, pending} <- find_by_email(email) do
-  # :ets.insert(:users, {email, token, uuid, pending})
-  # {email, token, uuid}
-  # end
-  # end
 
   @doc """
   Receives a list of users and creates a Map where keys are the users, and the values will store the authentication tokens.
@@ -76,12 +69,14 @@ defmodule PwdlessGs.Repo do
   """
   @impl true
   def init(users) when is_list(users) and length(users) > 0 do
-    IO.inspect(users, label: "init_____")
+    :ok = :net_kernel.monitor_nodes(true)
 
     name = :ets.new(:users, [:set, :public, :named_table, keypos: 1])
     IO.inspect("DB_init: ETS table #{name} started...")
+
     state = Enum.reduce(users, [], &[{&1, nil, Ecto.UUID.generate(), 0} | &2])
     :ets.insert(:users, state)
+
     :ok = Phoenix.PubSub.subscribe(PwdlessGs.PubSub, @users_topic)
     Process.send_after(self(), :perform_sync, @sync_init)
     {:ok, state}
@@ -89,11 +84,27 @@ defmodule PwdlessGs.Repo do
 
   @impl true
   def init([]) do
+    :ok = :net_kernel.monitor_nodes(true)
+    IO.inspect(Node.list([:visible, :this]), label: "Cluster:__")
+
     name = :ets.new(:users, [:set, :public, :named_table, keypos: 1])
     IO.inspect("DB_init: ETS table #{name} started...")
+
     :ok = Phoenix.PubSub.subscribe(PwdlessGs.PubSub, @users_topic)
     Process.send_after(self(), :perform_sync, @sync_init)
+
     {:ok, []}
+  end
+
+  @impl true
+  def handle_info({:nodeup, node}, _state) do
+    IO.inspect("Node UP #{node}")
+    {:noreply, []}
+  end
+
+  def handle_info({:nodedown, node}, state) do
+    IO.inspect("Node down #{node}")
+    {:noreply, state}
   end
 
   @impl true
@@ -107,15 +118,15 @@ defmodule PwdlessGs.Repo do
     )
 
     # rerun in @sync_interval
-    # Process.send_after(self(), :perform_sync, @sync_interval)
+    Process.send_after(self(), :perform_sync, @sync_interval)
     {:noreply, []}
   end
 
   @impl true
-  def handle_info({:sync, _message, from}, _state) when from == self(), do: {:noreply, []}
+  # def handle_info({:sync, _message, from}, _state) when from == self(), do: {:noreply, []}
 
   def handle_info({:sync, messages, _from}, _state) do
-    IO.inspect(messages, label: "Synced messages_______")
+    IO.puts("Synced messages_______")
     :ets.insert(:users, messages)
     {:noreply, []}
   end
@@ -129,33 +140,8 @@ defmodule PwdlessGs.Repo do
         :ets.insert(:users, {email, token, uuid})
     end
 
-    # Process.send_after(self(), :perform_sync, @sync_interval)
     {:noreply, []}
   end
-
-  # @impl true
-  # def handle_call({:new, email, context}, _from, _state) do
-  # {:ok, token} = UserToken.generate(context, email)
-  # id = Ecto.UUID.generate()
-  # user = {email, token, id}
-  # :ets.insert(:users, user)
-  # IO.inspect(user, label: "New user______________")
-
-  # Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @users_topic, {:perform_new, user})
-
-  # {:reply, user, []}
-  # end
-
-  # @impl true
-  # def handle_call({:save, email, token}, _from, _state) do
-  #   {^email, _, uuid} = find_by_email(email)
-  #   user = {email, token, uuid}
-  #   :ets.insert(:users, user)
-  #   IO.inspect(user, label: "Saved user______________")
-
-  #   Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @users_topic, {:perform_new, user})
-  #   {:reply, user, []}
-  # end
 
   # Initial test
   # def init(_), do: {:stop, "Invalid list of users"}
