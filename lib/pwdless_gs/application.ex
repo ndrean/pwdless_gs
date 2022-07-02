@@ -16,8 +16,6 @@ defmodule PwdlessGs.Application do
       PwdlessGsWeb.Endpoint,
       # {PwdlessGs.Repo, []}
       {PwdlessGs.Repo, [users: users()]}
-      # Start a worker by calling: PwdlessGs.Worker.start_link(arg)
-      # {PwdlessGs.Worker, arg}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
@@ -34,7 +32,7 @@ defmodule PwdlessGs.Application do
     :ok
   end
 
-  def users do
+  def testing_users do
     ["toto@mail.com", "bibi@mail.com"]
   end
 end

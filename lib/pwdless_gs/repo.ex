@@ -2,7 +2,18 @@ defmodule PwdlessGs.Repo do
   use GenServer
   alias PwdlessGs.UserToken
 
-  # require Record
+  def start_link(opts) do
+    {:ok, users} =
+      case opts do
+        [] ->
+          {:ok, []}
+
+        _ ->
+          Keyword.fetch(opts, :users)
+      end
+
+    GenServer.start_link(__MODULE__, users, name: __MODULE__)
+  end
 
   @users_topic "sync_users"
   @sync_interval 1000
@@ -69,15 +80,13 @@ defmodule PwdlessGs.Repo do
 
     name = :ets.new(:users, [:set, :public, :named_table, keypos: 1])
     IO.inspect("DB_init: ETS table #{name} started...")
-    # state = Enum.reduce(users, %{}, &Map.put(&2, &1, nil))
-    # state = Enum.reduce(users, [], &[%{"#{&1}" => nil, id: nil} | &2])
     state = Enum.reduce(users, [], &[{&1, :rand.uniform(20), Ecto.UUID.generate()} | &2])
     :ets.insert(:users, state)
-    IO.inspect(state, label: "state___")
     {:ok, state}
   end
 
   def init(_users), do: {:ok, []}
+
 
   # Initial test
   # def init(_), do: {:stop, "Invalid list of users"}
