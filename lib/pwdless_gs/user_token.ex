@@ -33,8 +33,6 @@ defmodule PwdlessGs.UserToken do
 
   def verify(context, token, data, _max_age \\ @max_social_age)
       when context in ["social_link", "login"] do
-    IO.puts("VERIFIY____")
-
     case Token.verify(@secret, context, token) do
       {:ok, ^data} ->
         {:ok, data}
