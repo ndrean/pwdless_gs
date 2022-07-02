@@ -4,11 +4,12 @@ defmodule PwdlessGs.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      {Cluster.Supervisor, [topologies(), [name: PwdlessGs.ClusterSupervisor]]},
       PwdlessGsWeb.Telemetry,
-      {Phoenix.PubSub, name: PwdlessGs.PubSub},
+      {Phoenix.PubSub, name: PwdlessGs.PubSub, adapter: Phoenix.PubSub.PG2},
       PwdlessGsWeb.Endpoint,
-      # {PwdlessGs.Repo, []}
-      {PwdlessGs.Repo, [users: testing_users()]}
+      {PwdlessGs.Repo, []}
+      # {PwdlessGs.Repo, [users: testing_users()]}
     ]
 
     opts = [strategy: :one_for_one, name: PwdlessGs.Supervisor]
@@ -22,7 +23,16 @@ defmodule PwdlessGs.Application do
     :ok
   end
 
-  def testing_users do
+  defp topologies do
+    [
+      epmd_topology: [
+        strategy: Cluster.Strategy.Epmd,
+        config: [hosts: [:"a@127.0.0.1", :"b@127.0.0.1"]]
+      ]
+    ]
+  end
+
+  defp testing_users do
     ["toto@mail.com", "bibi@mail.com"]
   end
 end

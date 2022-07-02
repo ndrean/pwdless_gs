@@ -19,3 +19,32 @@ git switch main
 git status
 # nothing to commit !!!! YES !!
 ```
+
+## Settings to distribute
+
+- Run `mix phx.gen.secret` to get a secret_key_base
+
+- set the PORT to an env variable:
+
+```iex
+config :pwdless_gs, PwdlessGsWeb.Endpoint,
+  # Binding to loopback ipv4 address prevents access from other machines.
+  # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
+  http: [ip: {127, 0, 0, 1}, port: System.get_env("PORT")],
+  secret_key_base: "e+6Qd+yFSxCY26rpVkCwMyhaE+T3yxjNVZKPiMKJaqlou6OaVyoLaE5kWItqUOcB",
+```
+
+- setup `libcluster` with `EPMD` strategy
+
+- run in two separate terminals
+
+```bash
+> PORT=4000 iex --name a@127.0.0.1 -S mix phx.server
+> PORT=4001 iex --name b@127.0.0.1 -S mix phx.server
+```
+
+## RPC calls
+
+```iex
+state = :rpc.call(:"a@127.0.0.1", PwdlessGs.Repo, :all, [])
+```
