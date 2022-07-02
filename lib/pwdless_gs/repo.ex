@@ -2,19 +2,6 @@ defmodule PwdlessGs.Repo do
   use GenServer
   alias PwdlessGs.UserToken
 
-  def start_link(opts) do
-    {:ok, users} =
-      case opts do
-        [] ->
-          {:ok, []}
-
-        _ ->
-          Keyword.fetch(opts, :users)
-      end
-
-    GenServer.start_link(__MODULE__, users, name: __MODULE__)
-  end
-
   @users_topic "sync_users"
   @sync_interval 1000
 
@@ -31,6 +18,7 @@ defmodule PwdlessGs.Repo do
           Keyword.fetch(opts, :users)
       end
 
+    # !!! make sure to pass the `name: __MODULE__`
     GenServer.start_link(__MODULE__, users, name: __MODULE__)
   end
 
@@ -47,15 +35,12 @@ defmodule PwdlessGs.Repo do
   end
 
   def find_by_email(email),
-    # do: Enum.find(all(), &(elem(&1, 0) == email))
     do: :ets.lookup(:users, email) |> List.first()
 
   def find_by_token(token),
-    # do: Enum.find(all(), &(elem(&1, 1) == token))
     do: :ets.match_object(:users, {:_, token, :_}) |> List.first()
 
   def find_by_id(uuid),
-    # do: Enum.find(all(), &(elem(&1, 2) == uuid))
     do: :ets.match_object(:users, {:_, :_, uuid}) |> List.first()
 
   def new(email, context) do
@@ -85,14 +70,12 @@ defmodule PwdlessGs.Repo do
     {:ok, state}
   end
 
-  def init(_users), do: {:ok, []}
-
+  def init([]) do
+    name = :ets.new(:users, [:set, :public, :named_table, keypos: 1])
+    IO.inspect("DB_init: ETS table #{name} started...")
+    {:ok, []}
+  end
 
   # Initial test
   # def init(_), do: {:stop, "Invalid list of users"}
-
-  # def handle_call({:save, email, session_token, uuid}, _from, state) do
-  # state = List.keyreplace(state, email, 0, {email, session_token, uuid})
-  # {:reply, {email, session_token, uuid}, state}
-  # end
 end

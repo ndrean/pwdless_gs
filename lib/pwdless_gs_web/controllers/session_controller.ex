@@ -26,13 +26,10 @@ defmodule PwdlessGsWeb.SessionController do
   def confirm_link(conn, %{"token" => token} = _params) do
     case UserToken.verify("magic_link", token) do
       {:ok, email} ->
-        IO.inspect(email)
         # provide a longer term token
         {:ok, session_token} = UserToken.generate("login", email)
-        IO.inspect(session_token, label: "session token generated")
         {^email, ^session_token, uuid} = Repo.save(email, session_token)
         conn = assign(conn, :token, token)
-        IO.inspect(UserToken.verify("login", session_token, email), label: "check____")
 
         json(conn, %{
           message: gettext("Welcome ") <> "#{email}!",
