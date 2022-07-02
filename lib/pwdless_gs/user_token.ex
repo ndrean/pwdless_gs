@@ -6,7 +6,8 @@ defmodule PwdlessGs.UserToken do
   alias Phoenix.Token
 
   @secret Application.get_env(:pwdless_gs, __MODULE__)[:secret_key_base]
-  @max_social_age 86400
+  @max_social_age 90
+  # 86400
   # no token will be decrypted if issued Time.now() - max_magic_age
   @max_magic_age 60
 

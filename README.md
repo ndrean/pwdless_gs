@@ -1,6 +1,7 @@
 # PwdlessGs
 
 Authentification via passwordless/email-magic-link or Social Login.
+Once the email is verified (via your email account or received via a social login), you get a short term signed token and a long term signed HttpOnly cookie. Since we are working with an SSR app, we share the same domain thus cookies are applicable. The token is set in the bearer and the cookie included in the credentials. The server only decrypts the token unless it is expired, in which case the server checks for the cookie (it contains the encrypted user UUID). If it is valid, then
 Authorization via a Phoenix token (with a refresher based on UUID).
 Using a key/value database for storing `{email, uuid, temporary token}`
 
@@ -15,7 +16,9 @@ Since Ets is not distributed, we need to somehow distribute the data through the
 
 ## Automatic clustering
 
-With `libcluster`. Mode "ip" - `epmd` is ok but mode "DNS" - `gossip`  didn't work for me???
+With `libcluster`, you have a "ip" dicovery with `epmd` and a "DNS" discovery with  `gossip`.
+
+> `gossip` didn't work for me with Phoenix ??
 
 What about [Docker and EPMD?](https://www.jkmrto.dev/posts/erlang-distributed-with-docker-and-libcluster)
 
@@ -58,12 +61,19 @@ config :pwdless_gs, PwdlessGsWeb.Endpoint,
 - run in two separate terminals
 
 ```bash
-> PORT=4000 iex --name a@127.0.0.1 -S mix phx.server
-> PORT=4001 iex --name b@127.0.0.1 -S mix phx.server
+> PORT=4000 iex --name a@127.0.0.1 --cookie 'secret' -S mix phx.server
+> PORT=4001 iex --name b@127.0.0.1 --cookie 'secret' -S mix phx.server
 ```
 
-## RPC calls
+## Misc Elixir functions
 
 ```iex
-state = :rpc.call(:"a@127.0.0.1", PwdlessGs.Repo, :all, [])
+# check GenServer state:
+iex> :sys.get_state(PwdlessGs.Repo)
+
+# check Ets database
+iex> :ets.tab2list(:users)
+
+# RPC calls from one node to the other
+iex> state = :rpc.call(:"a@127.0.0.1", PwdlessGs.Repo, :all, [])
 ```
