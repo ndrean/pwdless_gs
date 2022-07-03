@@ -4,19 +4,19 @@ defmodule PwdlessGs.Plug.Authorize do
   import Phoenix.Controller, only: [json: 2]
 
   def init(opts) do
-    opts
+    opts[:blacklist]
   end
 
-  defp read_bearer(conn) do
+  defp read_bearer(conn, blacklist) do
     with ["Bearer " <> token] <- get_req_header(conn, "authorization") do
-      {:ok, token}
-    else
-      [] -> {:error, "no bearer"}
+      if token not in blacklist,
+        do: {:ok, token},
+        else: {:error, :forbidden}
     end
   end
 
-  def call(conn, _opts) do
-    with {:header, {:ok, token}} <- {:header, read_bearer(conn)},
+  def call(conn, opts) do
+    with {:header, {:ok, token}} <- {:header, read_bearer(conn, opts)},
          {:token, {:ok, user}} <- {:token, UserToken.verify("login", token)} do
       conn
       |> assign(:current_user, user)

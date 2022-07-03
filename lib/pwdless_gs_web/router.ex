@@ -15,7 +15,11 @@ defmodule PwdlessGsWeb.Router do
   end
 
   pipeline :authorized do
-    plug PwdlessGs.Plug.Authorize
+    plug(PwdlessGs.Plug.Authorize,
+      blacklist: [
+        "SFMyNTY.g2gDbQAAAA1hYUBtYWlsLmNvLnVrbgYAuWxlwYEBYVo.1B7J3nm0g5RL2iMLrTrpF0khSta3tg4gAUqTOghsBkE"
+      ]
+    )
   end
 
   scope "/", PwdlessGsWeb do

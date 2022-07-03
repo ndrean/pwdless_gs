@@ -28,29 +28,28 @@ defmodule PwdlessGsWeb.SessionController do
     case UserToken.verify("magic_link", token) do
       {:ok, email} ->
         # provide a longer term token
-        {:ok, session_token} = UserToken.generate("login", email)
-        {^email, ^session_token, uuid} = Repo.save(email, session_token)
+        {:ok, session_token} = PwdlessGs.provide_token_for(email, "login")
+        {^email, ^session_token, uuid, _time} = Repo.save(email, session_token)
 
         # assign a verfiy long term cookie
         conn
         |> assign(:token, token)
         |> assign(:current, email)
-        |> put_resp_cookie("refresher", %{user_id: uuid},
-          encrypt: true,
-          http_only: true,
-          max_age: 2_600_000
-        )
+        |> PwdlessGs.provide_cookie_for(uuid)
         |> tap(fn conn ->
           %{"refresher" => %{user_id: value}} =
             fetch_cookies(conn, encrypted: ~w(refresher)).cookies
 
+          IO.puts("[TODO]: push the session token and the cookie to the client via websocket")
           IO.inspect(value, label: "cookie")
         end)
+        |> tap(fn conn -> IO.inspect(conn.assigns, label: "assigns") end)
+        |> tap(fn conn -> IO.inspect(conn.cookies, label: "cookies") end)
 
         json(conn, %{
           message: gettext("Welcome ") <> "#{email}!",
           session_token: session_token,
-          refresher: uuid
+          refresher_cookie: uuid
         })
 
       {:error, :expired} ->
