@@ -1,26 +1,19 @@
 defmodule PwdlessGs.Repo do
   use GenServer
   alias PwdlessGs.{Repo, UserToken}
+  alias :ets, as: Ets
 
+  require Logger
   @topic "sync_users"
-  @sync_init 1_000
-  @sync_interval 30_000
+  @sync_init 3_000
+  # @sync_interval 30_000
 
   # Ets stores data as tuples. We use a record so that we can use `user(email: "toto@mail.com", token: "123")
   # Record.defrecordp(:user, key: nil, email: nil, token: nil, uuid: nil, pending_user: 0)
   #  email: nil, token: nil, uuid: nil,
-  def start_link(opts) do
-    {:ok, users} =
-      case opts do
-        [] ->
-          {:ok, []}
-
-        _ ->
-          Keyword.fetch(opts, :users)
-      end
-
+  def start_link(_opts) do
     # !!! make sure to pass the `name: __MODULE__`
-    GenServer.start_link(__MODULE__, users, name: __MODULE__)
+    GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
 
   def all,
@@ -37,27 +30,25 @@ defmodule PwdlessGs.Repo do
     do: :persistent_term.get(email)
 
   def find_by_email(email),
-    do: :ets.lookup(:users, email) |> List.first()
+    do: Ets.lookup(:users, email) |> List.first()
 
   # def find_by_token(token),
   #   do: :ets.match_object(:users, {:_, token, :_}) |> List.first()
 
   def find_by_id(uuid),
-    do: :ets.match_object(:users, {:_, :_, uuid}) |> List.first()
+    do: Ets.match_object(:users, {:_, :_, uuid, :_}) |> List.first()
 
   def new(email, context) do
     {:ok, token} = UserToken.generate(context, email)
-    user = {email, token, Ecto.UUID.generate()}
-    :ets.insert(:users, user)
-    Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @topic, {:perform_new, user})
+    user = {email, token, Ecto.UUID.generate(), :os.system_time()}
+    GenServer.cast(__MODULE__, {:perform_new, user})
     user
   end
 
   def save(email, token) do
-    with {^email, _, uuid} <- find_by_email(email),
-         user <- {email, token, uuid} do
-      :ets.insert(:users, user)
-      Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @topic, {:perform_new, user})
+    with {^email, _, uuid, _} <- find_by_email(email) do
+      user = {email, token, uuid, :os.system_time()}
+      GenServer.cast(__MODULE__, {:perform_new, user})
       user
     end
   end
@@ -68,72 +59,65 @@ defmodule PwdlessGs.Repo do
   """
   @impl true
   def init([]) do
-    with :ok <- :net_kernel.monitor_nodes(true),
-         :users <- :ets.new(:users, [:set, :public, :named_table, keypos: 1]),
-         :ok <- Phoenix.PubSub.subscribe(PwdlessGs.PubSub, @topic) do
-      IO.inspect(Node.list([:visible, :this]), label: "Cluster:_____")
-      IO.inspect("DB_init: ETS table 'users' started...")
+    # nb: returns the previous state
+    false = Process.flag(:trap_exit, true)
+    :ok = :net_kernel.monitor_nodes(true)
+    :users = Ets.new(:users, [:set, :public, :named_table, keypos: 1])
+    :ok = Phoenix.PubSub.subscribe(PwdlessGs.PubSub, @topic)
 
-      Process.send_after(self(), :perform_sync, @sync_init)
-    end
+    Logger.info("ETS table 'users' started...")
 
     {:ok, []}
   end
 
   @impl true
-  def handle_info({:nodeup, node}, _state) do
-    IO.inspect("Node UP #{node}")
+  def handle_cast({:perform_new, message}, _state) do
+    Ets.insert(:users, message)
+    Logger.debug("[R]")
+    Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @topic, {:new, message})
     {:noreply, []}
   end
 
+  @impl true
+  def handle_info({:new, message}, _state) do
+    IO.puts("New received via pubsub______")
+    Ets.insert(:users, message)
+    Logger.debug("[R]")
+    {:noreply, []}
+  end
+
+  @impl true
+  def handle_info({:nodeup, node}, _state) do
+    Logger.info("Node UP #{node}")
+    IO.inspect(Node.list([:visible, :this]), label: "Cluster_____:")
+    Process.send_after(self(), {:perform_sync, []}, @sync_init)
+    {:noreply, []}
+  end
+
+  @impl true
   def handle_info({:nodedown, node}, state) do
-    IO.inspect("Node down #{node}")
+    Logger.info("Node down #{node}")
     {:noreply, state}
   end
 
   @impl true
-  def handle_info(:perform_sync, _state) do
-    # send the current node's state to other nodes
-    Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @topic, {:sync, Repo.all(), self()})
-    # rerun in @sync_interval
-    Process.send_after(self(), :perform_sync, @sync_interval)
+  def handle_info({:perform_sync, []}, _state) do
+    :ok = Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @topic, {:sync, Repo.all()})
     {:noreply, []}
   end
 
   @impl true
-  def handle_info({:sync, _message, from}, _state) when from == self(), do: {:noreply, []}
-
-  def handle_info({:sync, messages, _from}, _state) do
-    # IO.puts("Synced messages_______")
-    :ets.insert(:users, messages)
+  def handle_info({:sync, messages}, _state) do
+    IO.puts("Synced messages_______")
+    Ets.insert(:users, messages)
+    Logger.debug("[R]")
     {:noreply, []}
   end
 
   @impl true
-  def handle_info({:perform_new, message}, _state) do
-    # IO.inspect(message, label: "New received via pubsub______")
-    with {email, token, uuid} <- message do
-      :ets.insert(:users, {email, token, uuid})
-    end
-
-    {:noreply, []}
+  def terminate(reason, state) do
+    Phoenix.PubSub.unsubscribe(PwdlessGs.Repo, @topic)
+    Ets.delete(:users)
+    {:stop, reason, state}
   end
 end
-
-# Initial test
-# def init(_), do: {:stop, "Invalid list of users"}
-
-# @imp / l(true)
-# def init(users) when is_list(users) and length(users) > 0 do
-#   :ok = :net_kernel.monitor_nodes(true)
-
-#   name = :ets.new(:users, [:set, :public, :named_table, keypos: 1])
-#   IO.inspect("DB_init: ETS table #{name} started...")
-
-#   state = Enum.reduce(users, [], &[{&1, nil, Ecto.UUID.generate(), 0} | &2])
-#   :ets.insert(:users, state)
-
-#   :ok = Phoenix.PubSub.subscribe(PwdlessGs.PubSub, @users_topic)
-#   Process.send_after(self(), :perform_sync, @sync_init)
-#   {:ok, state}
-# end
