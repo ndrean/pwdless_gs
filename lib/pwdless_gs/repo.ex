@@ -9,7 +9,7 @@ defmodule PwdlessGs.Repo do
   alias PwdlessGs.{Repo, UserToken}
 
   @topic "sync_users"
-  @sync_init 3_000
+  @sync_init 6_000
 
   def start_link(opts) do
     {:ok, users} =
@@ -24,6 +24,9 @@ defmodule PwdlessGs.Repo do
 
   def all,
     do: :ets.tab2list(:users)
+
+  def backup,
+    do: Ets.tab2file(:users, 'data.txt')
 
   def exists?(email) do
     case find_by_email(email) do
@@ -47,25 +50,24 @@ defmodule PwdlessGs.Repo do
   def new(email, context) do
     {:ok, token} = UserToken.generate(context, email)
     user = {email, token, Ecto.UUID.generate(), :os.system_time()}
-    GenServer.cast(__MODULE__, {:perform_new, user})
+    GenServer.call(__MODULE__, {:perform_new, user})
     user
   end
 
   def save(email, token) do
     with {^email, _, uuid, _} <- find_by_email(email) do
       user = {email, token, uuid, :os.system_time()}
-      GenServer.cast(__MODULE__, {:perform_new, user})
-      user
+      IO.inspect(user, label: "CALL____")
+      GenServer.call(__MODULE__, {:perform_new, user})
+      # user
     end
   end
 
   @doc """
-  Instanciate an `epmd` listener, and subscribe to a PubSub topic.
+  Instanciate the `epmd` listener, and subscribe to a PubSub topic.
   """
   @impl true
   def init(users) do
-    # nb: returns the previous state
-    false = Process.flag(:trap_exit, true)
     :ok = :net_kernel.monitor_nodes(true)
     :users = Ets.new(:users, [:set, :public, :named_table, keypos: 1])
     Ets.insert(:users, users)
@@ -76,12 +78,18 @@ defmodule PwdlessGs.Repo do
   end
 
   @impl true
-  def handle_cast({:perform_new, message}, _state) do
+  def handle_call({:perform_new, message}, _from, _state) do
     Ets.insert(:users, message)
-    Logger.debug("[R]")
     Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @topic, {:new, message})
-    {:noreply, []}
+    {:reply, message, nil}
   end
+
+  # @impl true
+  # def handle_cast({:perform_new, message}, _state) do
+  #   Ets.insert(:users, message)
+  #   Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @topic, {:new, message})
+  #   {:noreply, []}
+  # end
 
   @impl true
   def handle_info({:new, message}, _state) do
@@ -117,12 +125,5 @@ defmodule PwdlessGs.Repo do
     Ets.insert(:users, messages)
     Logger.debug("[R]")
     {:noreply, []}
-  end
-
-  @impl true
-  def terminate(reason, state) do
-    Phoenix.PubSub.unsubscribe(PwdlessGs.Repo, @topic)
-    Ets.delete(:users)
-    {:stop, reason, state}
   end
 end

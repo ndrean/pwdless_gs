@@ -7,9 +7,9 @@ defmodule PwdlessGs.Application do
       {Cluster.Supervisor, [topologies(:epmd), [name: PwdlessGs.ClusterSupervisor]]},
       PwdlessGsWeb.Telemetry,
       {Phoenix.PubSub, name: PwdlessGs.PubSub, adapter: Phoenix.PubSub.PG2},
-      PwdlessGsWeb.Endpoint,
-      # {PwdlessGs.Repo, []}
-      {PwdlessGs.Repo, [users: testing_users()]}
+      # PwdlessGs.Repo,
+      {PwdlessGs.Repo, [users: testing_users()]},
+      PwdlessGsWeb.Endpoint
     ]
 
     opts = [strategy: :one_for_one, name: PwdlessGs.Supervisor]

@@ -3,6 +3,8 @@
 # General application configuration
 import Config
 
+config :pwdless_gs, repo: PwdlessGs.Repo
+
 # Configures the endpoint
 config :pwdless_gs, PwdlessGsWeb.Endpoint,
   url: [host: "localhost"],

@@ -1,11 +1,9 @@
 defmodule PwdlessGs.FakeEmail do
+  alias Faker.Internet
+
   def generate do
-    Stream.repeatedly(fn ->
-      FakerElixir.Helper.unique!(:unique_emails, fn ->
-        FakerElixir.Internet.email()
-      end)
-    end)
-    |> Enum.take(0)
+    Stream.repeatedly(&Internet.email/0)
+    |> Enum.take(100)
   end
 
   def users do
