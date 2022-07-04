@@ -20,7 +20,7 @@ defmodule PwdlessGs.MixProject do
   def application do
     [
       mod: {PwdlessGs.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :faker_elixir_octopus]
     ]
   end
 
@@ -48,7 +48,8 @@ defmodule PwdlessGs.MixProject do
       {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.5"},
       {:ecto, "~> 3.8"},
-      {:libcluster, "~> 3.3"}
+      {:libcluster, "~> 3.3"},
+      {:faker_elixir_octopus, "~> 1.0.0", only: [:dev, :test]}
     ]
   end
 

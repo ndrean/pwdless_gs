@@ -1,19 +1,25 @@
 defmodule PwdlessGs.Repo do
-  use GenServer
-  alias PwdlessGs.{Repo, UserToken}
-  alias :ets, as: Ets
+  @moduledoc """
+  Ets stores data as a list of tuples. A client session is: `{email, token, uuid, time_stamp}`. Wwe sync all Ets on "nodeup".
 
+  """
+  use GenServer
   require Logger
+  alias :ets, as: Ets
+  alias PwdlessGs.{Repo, UserToken}
+
   @topic "sync_users"
   @sync_init 3_000
-  # @sync_interval 30_000
 
-  # Ets stores data as tuples. We use a record so that we can use `user(email: "toto@mail.com", token: "123")
-  # Record.defrecordp(:user, key: nil, email: nil, token: nil, uuid: nil, pending_user: 0)
-  #  email: nil, token: nil, uuid: nil,
-  def start_link(_opts) do
+  def start_link(opts) do
+    {:ok, users} =
+      case opts do
+        [] -> {:ok, []}
+        _ -> Keyword.fetch(opts, :users)
+      end
+
     # !!! make sure to pass the `name: __MODULE__`
-    GenServer.start_link(__MODULE__, [], name: __MODULE__)
+    GenServer.start_link(__MODULE__, users, name: __MODULE__)
   end
 
   def all,
@@ -54,17 +60,16 @@ defmodule PwdlessGs.Repo do
   end
 
   @doc """
-  Receives a list of users and creates a Map where keys are the users, and the values will store the authentication tokens.
-  If what receives is not a list, we want it to return {:stop, "Invalid list of users"}, exiting the process and not letting the application to start.
+  Instanciate an `epmd` listener, and subscribe to a PubSub topic.
   """
   @impl true
-  def init([]) do
+  def init(users) do
     # nb: returns the previous state
     false = Process.flag(:trap_exit, true)
     :ok = :net_kernel.monitor_nodes(true)
     :users = Ets.new(:users, [:set, :public, :named_table, keypos: 1])
+    Ets.insert(:users, users)
     :ok = Phoenix.PubSub.subscribe(PwdlessGs.PubSub, @topic)
-
     Logger.info("ETS table 'users' started...")
 
     {:ok, []}

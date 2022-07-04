@@ -8,8 +8,8 @@ defmodule PwdlessGs.Application do
       PwdlessGsWeb.Telemetry,
       {Phoenix.PubSub, name: PwdlessGs.PubSub, adapter: Phoenix.PubSub.PG2},
       PwdlessGsWeb.Endpoint,
-      {PwdlessGs.Repo, []}
-      # {PwdlessGs.Repo, [users: testing_users()]}
+      # {PwdlessGs.Repo, []}
+      {PwdlessGs.Repo, [users: testing_users()]}
     ]
 
     opts = [strategy: :one_for_one, name: PwdlessGs.Supervisor]
@@ -50,7 +50,7 @@ defmodule PwdlessGs.Application do
     end
   end
 
-  # defp testing_users do
-  #   ["toto@mail.com", "bibi@mail.com"]
-  # end
+  defp testing_users do
+    PwdlessGs.FakeEmail.users()
+  end
 end
