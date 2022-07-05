@@ -3,7 +3,7 @@ defmodule PwdlessGs.FakeEmail do
 
   def generate do
     Stream.repeatedly(&Internet.email/0)
-    |> Enum.take(100)
+    |> Enum.take(0)
   end
 
   def users do

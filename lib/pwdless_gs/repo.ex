@@ -6,20 +6,19 @@ defmodule PwdlessGs.Repo do
   use GenServer
   require Logger
   alias :ets, as: Ets
-  alias PwdlessGs.{Repo, UserToken}
+  alias PwdlessGs.UserToken
 
   @topic "sync_users"
-  @sync_init 6_000
 
-  def start_link(opts) do
-    {:ok, users} =
+  def start_link(opts \\ []) do
+    {:ok, _users} =
       case opts do
         [] -> {:ok, []}
         _ -> Keyword.fetch(opts, :users)
       end
 
     # !!! make sure to pass the `name: __MODULE__`
-    GenServer.start_link(__MODULE__, users, name: __MODULE__)
+    GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
 
   def all,
@@ -50,16 +49,17 @@ defmodule PwdlessGs.Repo do
   def new(email, context) do
     {:ok, token} = UserToken.generate(context, email)
     user = {email, token, Ecto.UUID.generate(), :os.system_time()}
-    GenServer.call(__MODULE__, {:perform_new, user})
+    true = Ets.insert(:users, user)
+    :ok = Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @topic, {:new, user})
     user
   end
 
   def save(email, token) do
     with {^email, _, uuid, _} <- find_by_email(email) do
       user = {email, token, uuid, :os.system_time()}
-      IO.inspect(user, label: "CALL____")
-      GenServer.call(__MODULE__, {:perform_new, user})
-      # user
+      true = Ets.insert(:users, user)
+      :ok = Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @topic, {:new, user})
+      user
     end
   end
 
@@ -68,54 +68,19 @@ defmodule PwdlessGs.Repo do
   """
   @impl true
   def init(users) do
-    :ok = :net_kernel.monitor_nodes(true)
     :users = Ets.new(:users, [:set, :public, :named_table, keypos: 1])
+    Logger.info("ETS table 'users' started...")
     Ets.insert(:users, users)
     :ok = Phoenix.PubSub.subscribe(PwdlessGs.PubSub, @topic)
-    Logger.info("ETS table 'users' started...")
 
     {:ok, []}
   end
-
-  @impl true
-  def handle_call({:perform_new, message}, _from, _state) do
-    Ets.insert(:users, message)
-    Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @topic, {:new, message})
-    {:reply, message, nil}
-  end
-
-  # @impl true
-  # def handle_cast({:perform_new, message}, _state) do
-  #   Ets.insert(:users, message)
-  #   Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @topic, {:new, message})
-  #   {:noreply, []}
-  # end
 
   @impl true
   def handle_info({:new, message}, _state) do
     IO.puts("New received via pubsub______")
     Ets.insert(:users, message)
     Logger.debug("[R]")
-    {:noreply, []}
-  end
-
-  @impl true
-  def handle_info({:nodeup, node}, _state) do
-    Logger.info("Node UP #{node}")
-    IO.inspect(Node.list([:visible, :this]), label: "Cluster_____:")
-    Process.send_after(self(), {:perform_sync, []}, @sync_init)
-    {:noreply, []}
-  end
-
-  @impl true
-  def handle_info({:nodedown, node}, state) do
-    Logger.info("Node down #{node}")
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info({:perform_sync, []}, _state) do
-    :ok = Phoenix.PubSub.broadcast_from(PwdlessGs.PubSub, self(), @topic, {:sync, Repo.all()})
     {:noreply, []}
   end
 

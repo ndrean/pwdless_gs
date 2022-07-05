@@ -7,8 +7,9 @@ defmodule PwdlessGs.Application do
       {Cluster.Supervisor, [topologies(:epmd), [name: PwdlessGs.ClusterSupervisor]]},
       PwdlessGsWeb.Telemetry,
       {Phoenix.PubSub, name: PwdlessGs.PubSub, adapter: Phoenix.PubSub.PG2},
-      # PwdlessGs.Repo,
-      {PwdlessGs.Repo, [users: testing_users()]},
+      PwdlessGs.NodeListener,
+      PwdlessGs.Repo,
+      # {PwdlessGs.Repo, [users: testing_users()]},
       PwdlessGsWeb.Endpoint
     ]
 
